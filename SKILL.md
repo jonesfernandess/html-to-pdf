@@ -1,12 +1,12 @@
 # HTML to PDF — Conversão com fidelidade visual total
 
-Converte arquivos HTML em PDF preservando 100% da aparência visual: gradientes, sombras, backdrop-filter, fontes web, layouts complexos.
+Converte arquivos HTML ou sites online em PDF preservando 100% da aparência visual: gradientes, sombras, backdrop-filter, fontes web, layouts complexos.
 
 ## Como funciona
 
 Em vez de renderizadores PDF tradicionais (que perdem estilos visuais), esta ferramenta:
 
-1. Abre o HTML num **Chromium real** via Playwright
+1. Abre o **HTML local ou URL remota** num **Chromium real** via Playwright
 2. Aguarda **fontes web** carregarem
 3. **Força visibilidade** de elementos animados (scroll-reveal, AOS, GSAP, fade-in, etc.)
 4. **Desfixa elementos sticky/fixed** (navbars, botões flutuantes, banners) para evitar sobreposição
@@ -24,8 +24,11 @@ python -m playwright install chromium
 ## Uso via CLI
 
 ```bash
-# Auto-detecta seções
+# Auto-detecta seções (arquivo local)
 python html_to_pdf.py pagina.html
+
+# A partir de uma URL
+python html_to_pdf.py https://exemplo.com -o exemplo.pdf
 
 # Define saída
 python html_to_pdf.py pagina.html -o proposta.pdf
@@ -44,7 +47,7 @@ python html_to_pdf.py pagina.html --keep-screenshots
 
 | Argumento            | Padrão | Descrição                             |
 |----------------------|--------|---------------------------------------|
-| `html`               | —      | Caminho do arquivo HTML (obrigatório) |
+| `html`               | —      | Caminho do arquivo HTML ou URL (obrigatório) |
 | `-o`, `--output`     | auto   | Caminho do PDF de saída               |
 | `-s`, `--sections`   | auto   | Seletores CSS das seções              |
 | `-w`, `--width`      | 1440   | Largura do viewport (px)              |
@@ -58,12 +61,13 @@ python html_to_pdf.py pagina.html --keep-screenshots
 Se você é uma IA assistente e o usuário quer converter HTML em PDF:
 
 1. **Verifique dependências**: `pip install playwright Pillow && python -m playwright install chromium`
-2. **HTML com seções semânticas** (`<section>`, `<header>`, etc.)? Rode sem `-s`, o auto-detect funciona.
-3. **HTML só com `<div>`?** Leia o HTML, identifique os seletores das seções principais e passe com `-s`.
-4. **Animações** (reveal, AOS, GSAP)? O script já neutraliza automaticamente.
-5. **Navbar fixa/sticky atrapalhando?** Já é tratado — elementos `position: fixed/sticky` são convertidos para `relative` automaticamente.
-5. **Qualidade máxima?** Use `--scale 3 --width 1920`.
-6. **Quer revisar antes de gerar o PDF?** Use `--keep-screenshots` e verifique as imagens.
+2. **Arquivo local ou URL?** Ambos funcionam — o script detecta automaticamente. Para URLs, passe `-o` para definir o nome do PDF.
+3. **HTML com seções semânticas** (`<section>`, `<header>`, etc.)? Rode sem `-s`, o auto-detect funciona.
+4. **HTML só com `<div>`?** Leia o HTML, identifique os seletores das seções principais e passe com `-s`.
+5. **Animações** (reveal, AOS, GSAP)? O script já neutraliza automaticamente.
+6. **Navbar fixa/sticky atrapalhando?** Já é tratado — elementos `position: fixed/sticky` são convertidos para `relative` automaticamente.
+7. **Qualidade máxima?** Use `--scale 3 --width 1920`.
+8. **Quer revisar antes de gerar o PDF?** Use `--keep-screenshots` e verifique as imagens.
 
 ### Exemplo completo
 

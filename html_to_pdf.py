@@ -13,6 +13,9 @@ Uso:
     # Auto-detecta seções (section, header, main, footer, [data-section])
     python html_to_pdf.py pagina.html
 
+    # A partir de uma URL
+    python html_to_pdf.py https://exemplo.com -o exemplo.pdf
+
     # Especifica seletores CSS manualmente
     python html_to_pdf.py pagina.html -s ".hero" ".about" ".pricing" "footer"
 
@@ -29,10 +32,12 @@ Uso:
 import argparse
 import asyncio
 import os
+import re
 import shutil
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 try:
     from playwright.async_api import async_playwright
@@ -157,9 +162,14 @@ async def detect_sections(page):
     return valid
 
 
-async def screenshot_sections(html_path, selectors, viewport_width, scale, screenshot_dir, font_wait_ms):
-    """Abre o HTML e tira screenshot de cada seção."""
-    html_uri = Path(html_path).resolve().as_uri()
+def is_url(source):
+    """Verifica se a source é uma URL (http/https)."""
+    return source.startswith(("http://", "https://"))
+
+
+async def screenshot_sections(source, selectors, viewport_width, scale, screenshot_dir, font_wait_ms):
+    """Abre o HTML (arquivo local ou URL) e tira screenshot de cada seção."""
+    target = source if is_url(source) else Path(source).resolve().as_uri()
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()
@@ -168,8 +178,8 @@ async def screenshot_sections(html_path, selectors, viewport_width, scale, scree
             device_scale_factor=scale,
         )
 
-        print(f"Abrindo: {html_uri}")
-        await page.goto(html_uri, wait_until="networkidle")
+        print(f"Abrindo: {target}")
+        await page.goto(target, wait_until="networkidle")
 
         # Aguarda fontes carregarem
         print(f"Aguardando fontes ({font_wait_ms}ms)...")
@@ -245,7 +255,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("html", help="Caminho para o arquivo HTML")
+    parser.add_argument("html", help="Caminho para o arquivo HTML ou URL (http/https)")
     parser.add_argument("-o", "--output", help="Caminho do PDF de saída (padrão: mesmo nome do HTML com .pdf)")
     parser.add_argument("-s", "--sections", nargs="+", help="Seletores CSS das seções (auto-detecta se omitido)")
     parser.add_argument("-w", "--width", type=int, default=1440, help="Largura do viewport em pixels (padrão: 1440)")
@@ -257,16 +267,21 @@ def main():
     args = parser.parse_args()
 
     # Valida input
-    html_path = os.path.abspath(args.html)
-    if not os.path.isfile(html_path):
-        print(f"Erro: arquivo não encontrado: {html_path}")
-        sys.exit(1)
+    source = args.html
+    if is_url(source):
+        # Gera nome do PDF a partir do domínio
+        parsed = urlparse(source)
+        domain_name = re.sub(r'[^\w\-]', '_', parsed.netloc)
+        default_output = os.path.join(os.getcwd(), f"{domain_name}.pdf")
+    else:
+        source = os.path.abspath(source)
+        if not os.path.isfile(source):
+            print(f"Erro: arquivo não encontrado: {source}")
+            sys.exit(1)
+        default_output = os.path.splitext(source)[0] + ".pdf"
 
     # Define output
-    if args.output:
-        output_path = os.path.abspath(args.output)
-    else:
-        output_path = os.path.splitext(html_path)[0] + ".pdf"
+    output_path = os.path.abspath(args.output) if args.output else default_output
 
     # Diretório de screenshots
     if args.screenshot_dir:
@@ -281,7 +296,7 @@ def main():
         screenshot_dir = tempfile.mkdtemp(prefix="html2pdf_")
         cleanup = True
 
-    print(f"HTML:        {html_path}")
+    print(f"Fonte:       {source}")
     print(f"PDF:         {output_path}")
     print(f"Viewport:    {args.width}px (scale {args.scale}x)")
     print(f"Screenshots: {screenshot_dir}")
@@ -290,7 +305,7 @@ def main():
     # Executa
     paths = asyncio.run(
         screenshot_sections(
-            html_path=html_path,
+            source=source,
             selectors=args.sections,
             viewport_width=args.width,
             scale=args.scale,
